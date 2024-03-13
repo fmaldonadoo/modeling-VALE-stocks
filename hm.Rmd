@@ -1,0 +1,216 @@
+---
+title: "homework final"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+date: "2023-08-23"
+---
+
+```{r}
+library(BatchGetSymbols)
+library(rugarch)
+library(tidyverse)
+library(yfR)
+library(FinTS)
+```
+
+```{r}
+#ticker VALE
+tickers<-c("VALE3.SA")
+
+vale<- BatchGetSymbols(tickers,
+                                 first.date = '2020-01-01',
+                                 last.date = Sys.time(),
+                                 type.return = "log",
+                                 freq.data = "daily")
+
+vale <- vale[[2]]
+```
+
+```{r}
+daily_returns <- vale %>% 
+  select(ref.date,ret.closing.prices)
+
+date <- daily_returns %>%
+  select(ref.date) %>% 
+  rename(date = ref.date) %>% 
+  slice(-1)
+
+daily_returns <- daily_returns %>%
+  select(ret.closing.prices) %>% 
+  slice(-1)
+```
+
+```{r}
+garch.spec_std = ugarchspec(variance.model = list(model = "sGARCH", garchOrder = c(1, 1)), mean.model = list(armaOrder=c(0,0),include.mean = FALSE),
+                        distribution.model = "std")
+```
+
+```{r}
+garch.spec_norm = ugarchspec(variance.model = list(model = "sGARCH", garchOrder = c(1, 1)), mean.model = list(armaOrder=c(0,0),include.mean = FALSE),
+                        distribution.model = "norm")
+```
+
+
+```{r}
+egarch.spec_std = ugarchspec(variance.model = list(model = "eGARCH", garchOrder = c(1, 1)), mean.model = list(armaOrder=c(0,0),include.mean = FALSE),
+                        distribution.model = "std")
+```
+
+```{r}
+egarch.spec_norm = ugarchspec(variance.model = list(model = "eGARCH", garchOrder = c(1, 1)), mean.model = list(armaOrder=c(0,0),include.mean = FALSE),
+                        distribution.model = "norm")
+```
+
+```{r}
+gjr.spec_std = ugarchspec(variance.model = list(model = "gjrGARCH", garchOrder = c(1, 1)), mean.model = list(armaOrder=c(0,0),include.mean = FALSE),
+                        distribution.model = "std")
+```
+
+```{r}
+gjr.spec_norm = ugarchspec(variance.model = list(model = "gjrGARCH", garchOrder = c(1, 1)), mean.model = list(armaOrder=c(0,0),include.mean = FALSE),
+                        distribution.model = "norm")
+```
+
+
+```{r}
+garch.fit_norm = ugarchfit(spec = garch.spec_norm, data = daily_returns)
+garch.fit_std = ugarchfit(spec = garch.spec_std, data = daily_returns)
+garch.fit_norm
+garch.fit_std
+```
+
+
+```{r}
+egarch.fit_norm = ugarchfit(spec = egarch.spec_norm, data = daily_returns)
+egarch.fit_std = ugarchfit(spec = egarch.spec_std, data = daily_returns)
+egarch.fit_norm
+egarch.fit_std
+```
+
+
+```{r}
+gjr.fit_norm = ugarchfit(spec = gjr.spec_norm, data = daily_returns)
+gjr.fit_std = ugarchfit(spec = gjr.spec_std, data = daily_returns)
+gjr.fit_norm
+gjr.fit_std
+```
+
+
+```{r}
+#garch std
+#akaike= -4.7027
+#bayes= -4.6814
+
+#egarch std
+#akaike= -4.7081
+#bayes= -4.6816
+
+#gjrgarch std
+#akaike= -4.7111
+#bayes= -4.6845
+
+#garch norm
+#akaike= -4.6640
+#bayes= -4.6480
+
+#egarch norm
+#akaike= -4.6760
+#bayes= -4.6568
+
+#gjrGARCH norm 
+#akaike= -4.7027
+#bayes= -4.6568
+
+
+#o melhor dentre os 3 modelos é o gjrGARCH, pois possui, tanto no norm quanto no std, os menores valores de akaike e bayes.
+```
+
+```{r}
+# Análise de resíduos
+residuals_gjr_norm <- residuals(gjr.fit_norm)
+residuals_gjr_std <- residuals(gjr.fit_std)
+# Gráficos de Autocorrelação dos Resíduos
+par(mfrow = c(3, 1))
+acf(residuals_gjr_norm, main = "ACF dos Resíduos (GJR-GARCH-NORM)")
+acf(residuals_gjr_std, main = "ACF dos Resíduos (GJR-GARCH-STD)")
+
+# Gráficos de Histograma dos Resíduos
+par(mfrow = c(3, 1))
+hist(residuals_gjr_norm, main = "Histograma dos Resíduos (GJR-GARCH)", breaks = 20)
+hist(residuals_gjr_std, main = "Histograma dos Resíduos (GJR-GARCH)", breaks = 20)
+
+# Testes de Ljung-Box (Autocorrelação) nos Resíduos
+ljung_box_test_gjr_norm <- Box.test(residuals_gjr_norm, lag = 20, type = "Ljung-Box")
+ljung_box_test_gjr_std <- Box.test(residuals_gjr_std, lag = 20, type = "Ljung-Box")
+
+
+print("Teste de Ljung-Box nos Resíduos (GJR-GARCH):")
+print(ljung_box_test_gjr_norm)
+print(ljung_box_test_gjr_std)
+
+
+```
+
+```{r}
+plot(gjr.fit_norm, which = 8)
+plot(gjr.fit_norm, which = 9)
+plot(gjr.fit_norm, which = 10)
+plot(gjr.fit_norm, which = 11)
+
+
+```
+
+```{r}
+plot(gjr.fit_std, which = 8)
+plot(gjr.fit_std, which = 9)
+plot(gjr.fit_std, which = 10)
+plot(gjr.fit_std, which = 11)
+```
+
+```{r}
+# Análise de resíduos
+residuals_gjr_norm <- residuals(gjr.fit_norm)
+residuals_gjr_std <- residuals(gjr.fit_std)
+
+# Gráficos de Autocorrelação dos Resíduos
+par(mfrow = c(3, 1))
+acf(residuals_gjr_norm, main = "ACF dos Resíduos (GJR-GARCH-NORM)")
+acf(residuals_gjr_std, main = "ACF dos Resíduos (GJR-GARCH-STD)")
+
+# Gráficos de Histograma dos Resíduos
+par(mfrow = c(3, 1))
+hist(residuals_gjr_norm, main = "Histograma dos Resíduos (GJR-GARCH-NORM)", breaks = 20)
+hist(residuals_gjr_std, main = "Histograma dos Resíduos (GJR-GARCH-STD)", breaks = 20)
+
+# Testes de Ljung-Box (Autocorrelação) nos Resíduos
+ljung_box_test_gjr_norm <- Box.test(residuals_gjr_norm, lag = 20, type = "Ljung-Box")
+ljung_box_test_gjr_std <- Box.test(residuals_gjr_std, lag = 20, type = "Ljung-Box")
+
+print("Teste de Ljung-Box nos Resíduos (GJR-GARCH):")
+print(ljung_box_test_gjr_norm)
+print(ljung_box_test_gjr_std)
+```
+
+
+
+```{r}
+gjr.1.norm = ugarchforecast(gjr.fit_norm, n.ahead = 10)
+gjr.1.norm
+plot(gjr.1.norm, which=1)
+```
+
+```{r}
+gjr.1.std = ugarchforecast(gjr.fit_std, n.ahead = 10)
+gjr.1.std
+plot(gjr.1.std, which=1)
+```
+```{r}
+plot(gjr.1.norm, which = 3)
+```
+
+```{r}
+plot(gjr.1.std, which = 3)
+```
+
